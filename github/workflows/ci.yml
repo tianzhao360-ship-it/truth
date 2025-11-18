@@ -1,0 +1,52 @@
+name: CI
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node.js (optional)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+      - name: Set up Python (optional)
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install and run tests (auto-detect)
+        run: |
+          set -e
+          echo "Detecting project type and running tests..."
+          if [ -f package.json ]; then
+            echo "Node project detected (package.json). Installing and running npm test..."
+            npm ci
+            if npm test; then
+              echo "npm test succeeded"
+            else
+              echo "npm test failed"
+              exit 1
+            fi
+          fi
+          if [ -f requirements.txt ] || [ -f setup.py ] || [ -f pyproject.toml ]; then
+            echo "Python project detected. Installing and running pytest if available..."
+            python -m pip install --upgrade pip
+            if [ -f requirements.txt ]; then
+              python -m pip install -r requirements.txt
+            else
+              python -m pip install . || true
+            fi
+            if command -v pytest >/dev/null 2>&1; then
+              pytest
+            else
+              echo "pytest not found; skipping python tests"
+            fi
+          fi
+          if [ ! -f package.json ] && [ ! -f requirements.txt ] && [ ! -f setup.py ] && [ ! -f pyproject.toml ]; then
+            echo "No common project files detected (package.json, requirements.txt, setup.py, pyproject.toml). Please update .github/workflows/ci.yml with proper steps for your project."
+          fi
